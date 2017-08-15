@@ -1,0 +1,161 @@
+<html>
+  <head>
+    <script src="aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene id="sky">
+      <!--
+      <a-sphere id="gula" position="0 1 0" radius=".1" color="green"></a-sphere>
+      <a-sphere id="gula" position="0 0 1" radius=".1" color="blue"></a-sphere>
+      <a-box id="boxik" position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+      <a-sphere id="gula" position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+      <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+        <a-animation attribute="opacity" dur="5000" from="0.0" to="0.8"></a-animation>
+        <a-ring position="0 0 -20" color="gray" radius="0.1" opacity=0.5></a-ring>
+      --!>
+      <a-camera id="camera" position="0 0 0" rotation="0 0 0"></a-camera>
+      <a-sky id="starry-sky" src="milkyway.jpg"></a-sky>
+      <a-sky id="black-sky" color="black" opacity="0.0"></a-sky>
+      <a-plane id="m31" position="0 0 0" rotation="0 0 0" transparent="true" width="8" height="8" src="m31.png"></a-plane>
+    </a-scene>
+
+    <script>
+    d=10; r=-85;
+    dp=false;dm=false;rp=false;rm=false;
+    document.onkeydown=keyDownHandler;
+    document.onkeyup=keyUpHandler;
+    function keyUpHandler(e){
+        if (e.keyCode === 73) {
+            dp=false; // i
+        }
+        else if (e.keyCode === 75) {
+            dm=false; // k
+        }
+        else if (e.keyCode === 74) {
+            rp=false; // j
+        }
+        else if (e.keyCode === 76) {
+            rm=false; // l
+        }
+        else if (e.keyCode === 13) {
+            console.log(x);
+            console.log(y);
+            console.log(z);
+            console.log(cam_d);
+            console.log(cam_a);
+            console.log(r);
+        }
+    }
+    function keyDownHandler(e){
+        if (e.keyCode === 73) {
+            dp=true; // i
+        }
+        else if (e.keyCode === 75) {
+            dm=true; // k
+        }
+        else if (e.keyCode === 74) {
+            rp=true; // j
+        }
+        else if (e.keyCode === 76) {
+            rm=true; // l
+        }
+    }
+    blackoutDuration = 4000; // ms
+    clearBlackoutDuration = blackoutDuration / 8;
+    blackoutIntensity = 0.8 // opacity of the black-sky
+    alpha = [0,10,20,30,40,50,60,70,80,90];
+    delta = [0,10,20,30,40,50,60,70,80,90];
+    detail = false;
+    //x0=0; y0=1.25; z0=-5;
+    //angle = 45
+    //boxik = document.getElementById("boxik")
+    //gula = document.getElementById("gula")
+    setInterval(function(){
+        camera = document.querySelector('[camera]');
+        if (! camera) return;
+        cam_position = camera.getAttribute('position');
+        cam_x = cam_position.x;
+        cam_y = cam_position.y;
+        cam_z = cam_position.z;
+        cam_rotation = camera.getAttribute('rotation');
+        cam_d = cam_rotation.x;
+        cam_a = cam_rotation.y;
+        alpha.shift();
+        alpha.push(cam_a);
+        avg_a = alpha.reduce(function(s,v){s+=v;return s},0) / 10;
+        var_a = Math.sqrt(alpha.reduce(function(s,v){s+=(v-avg_a)**2;return s},0));
+        delta.shift();
+        delta.push(cam_d);
+        avg_d = delta.reduce(function(s,v){s+=v;return s},0) / 10;
+        var_d = Math.sqrt(delta.reduce(function(s,v){s+=(v-avg_d)**2;return s},0));
+        if ((var_a<1.5) && (var_d<1)) {
+            x = cam_x - d * Math.sin(Math.PI * avg_a / 180) * Math.cos(Math.PI * avg_d / 180);
+            z = cam_z - d * Math.cos(Math.PI * avg_a / 180) * Math.cos(Math.PI * avg_d / 180);
+            y = cam_y + d * Math.sin(Math.PI * avg_d / 180);
+            //console.log(x);
+            //console.log(y);
+            //console.log(z);
+            blackSky = document.getElementById("black-sky");
+            fadeOut = document.createElement("a-animation");
+            fadeOut.setAttribute("id","sky-fadeout");
+            fadeOut.setAttribute("attribute","opacity");
+            fadeOut.setAttribute("from","0.0");
+            fadeOut.setAttribute("to",blackoutIntensity);
+            fadeOut.setAttribute("dur",blackoutDuration);
+            //gula = document.createElement("a-text");
+            //gula.setAttribute("color","green");
+            //gula.setAttribute("rotation",cam_d+" "+cam_a);
+            //gula.setAttribute("position",(x+cam_x)+"; "+(y+cam_y)+" "+(z+cam_z));
+            //gula.setAttribute("text","value","test");
+            if(dp){d+=0.1}
+            if(dm){d-=0.1}
+            if(rp){r+=1}
+            if(rm){r-=1}
+            m31 = document.getElementById("m31");
+            m31.setAttribute("position",x+" "+y+" "+z);
+            m31.setAttribute("rotation",cam_d+" "+cam_a+" "+r);
+            if( !detail ) {
+                blackSky.appendChild(fadeOut);
+                detail = true;
+
+                //m31 = document.getElementById("m31");
+                //m31Zoom = document.createElement("a-animation");
+                //m31Zoom.setAttribute("id","m31-zoom");
+                //m31Zoom.setAttribute("attribute","position");
+                //m31Zoom.setAttribute("from","43 -39 83");
+                //m31Zoom.setAttribute("to","4.3 -3.9 8.3");
+                //m31Zoom.setAttribute("dur","5000");
+                //m31.appendChild(m31Zoom);
+            }
+        }
+        else {
+            if (detail) {
+                //m31 = document.getElementById("m31");
+                //m31.removeChild(m31);
+                
+                fadeOut = document.getElementById("sky-fadeout");
+                if (fadeOut) {
+                    blackSky = document.getElementById("black-sky");
+                    currentSkyOpacity = blackSky.getAttribute("opacity");
+
+                    fadeIn = document.createElement("a-animation");
+                    fadeIn.setAttribute("id","sky-fadein");
+                    fadeIn.setAttribute("attribute","opacity");
+                    fadeIn.setAttribute("from",currentSkyOpacity);
+                    fadeIn.setAttribute("to","0.0");
+                    fadeIn.setAttribute("dur",clearBlackoutDuration*currentSkyOpacity/blackoutIntensity);
+
+                    blackSky.removeChild(fadeOut);
+                    blackSky.appendChild(fadeIn);
+                    
+                    setTimeout(function(){
+                        blackSky.removeChild(fadeIn);
+                    }, 1000);
+                }
+            }
+            detail = false;
+        }
+    },100)
+    </script>
+  </body>
+</html>
