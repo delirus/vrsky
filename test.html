@@ -305,47 +305,48 @@
             testPlane.setAttribute("position",x+" "+y+" "+z);
             testPlane.setAttribute("rotation",cameraDelta+" "+cameraAlpha+" "+currentOrientation);
         }
-        
-        // average of the cosine of the angle between all of the previousDirections
-        // (bigger number means that the previousDirections vectors are closer to each other)
-        directionalVariation = previousDirections.reduce(
-            function(s,v1){
-                for(i in s[1]){
-                    v2 = s[1][i];
-                    // we don't use cosAngle function because we always have unit vectors and this is faster
-                    // (this is called once in every event loop)
-                    s[0] += (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) / (s[1].length**2);
-                }
-                return s
-            },
-            [0,previousDirections])[0];
-        
-        isGazing = (directionalVariation > currentGazingThreshold);
-        
-        if (isGazing) {
-            // use the average of the diretional vector of the previousDirections as the gazing direction
-            gazingDirection = previousDirections.reduce(
-                function(s,v){
-                    s[0]+=v[0]/previousDirections.length;
-                    s[1]+=v[1]/previousDirections.length;
-                    s[2]+=v[2]/previousDirections.length;
-                    return s;
+        else {
+            // average of the cosine of the angle between all of the previousDirections
+            // (bigger number means that the previousDirections vectors are closer to each other)
+            directionalVariation = previousDirections.reduce(
+                function(s,v1){
+                    for(i in s[1]){
+                        v2 = s[1][i];
+                        // we don't use cosAngle function because we always have unit vectors here and this is faster
+                        // (this is called once in every event loop)
+                        s[0] += (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) / (s[1].length**2);
+                    }
+                    return s
                 },
-                [0,0,0]);
+                [0,previousDirections])[0];
+            
+            isGazing = (directionalVariation > currentGazingThreshold);
+            
+            if (isGazing) {
+                // use the average of the diretional vector of the previousDirections as the gazing direction
+                console.log("gazing")
+                gazingDirection = previousDirections.reduce(
+                    function(s,v){
+                        s[0]+=v[0]/previousDirections.length;
+                        s[1]+=v[1]/previousDirections.length;
+                        s[2]+=v[2]/previousDirections.length;
+                        return s;
+                    },
+                    [0,0,0]);
 
-            // determine if there is any object near the current gazing direction
-            objectUnderGaze = getSkyObject(gazingDirection);
-            if (objectUnderGaze && !zoomedObject) {
-                darkenSky();
-                zoomInSkyObject(objectUnderGaze);
-                console.log("gazing on")
-            }
-        } else {
-            // not gazing
-            if (zoomedObject) {
-                zoomOutSkyObject(zoomedObject);
-                clearSky();
-                console.log("gazing off")
+                // determine if there is any object near the current gazing direction
+                objectUnderGaze = getSkyObject(gazingDirection);
+                if (objectUnderGaze && !zoomedObject) {
+                    darkenSky();
+                    zoomInSkyObject(objectUnderGaze);
+                }
+            } else {
+                // not gazing
+                console.log("not gazing")
+                if (zoomedObject) {
+                    zoomOutSkyObject(zoomedObject);
+                    clearSky();
+                }
             }
         }
     }
