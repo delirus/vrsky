@@ -16,26 +16,45 @@
       <a-camera id="camera" position="0 0 0" rotation="0 0 0"></a-camera>
       <a-sky id="starry-sky" src="milkyway.jpg"></a-sky>
       <a-sky id="black-sky" color="black" opacity="0.0"></a-sky>
-      <a-plane id="m31" position="0 0 0" rotation="0 0 0" transparent="true" width="8" height="8" src="m31.png"></a-plane>
     </a-scene>
 
     <script>
-    d=10; r=-85;
-    dp=false;dm=false;rp=false;rm=false;
+    currentDistance = 10;
+    currentRotation = 0;
+    
+    increaseDistance = false;
+    decreaseDistance = false;
+    increaseRotation = false;
+    decreaseRotation = false;
+
+    function keyDownHandler(e){
+        if (e.keyCode === 73) { // i
+            increaseDistance = true;
+        }
+        else if (e.keyCode === 75) { // k
+            decreaseDistance = true;
+        }
+        else if (e.keyCode === 74) { // j
+            increaseRotation = true;
+        }
+        else if (e.keyCode === 76) { // l
+            decreaseRotation = true;
+        }
+    }
     document.onkeydown=keyDownHandler;
-    document.onkeyup=keyUpHandler;
+
     function keyUpHandler(e){
-        if (e.keyCode === 73) {
-            dp=false; // i
+        if (e.keyCode === 73) { // i
+            increaseDistance = false;
         }
-        else if (e.keyCode === 75) {
-            dm=false; // k
+        else if (e.keyCode === 75) { // k
+            decreaseDistance = false;
         }
-        else if (e.keyCode === 74) {
-            rp=false; // j
+        else if (e.keyCode === 74) { // j
+            increaseRotation = false;
         }
-        else if (e.keyCode === 76) {
-            rm=false; // l
+        else if (e.keyCode === 76) { // l
+            decreaseRotation = false;
         }
         else if (e.keyCode === 13) {
             console.log(x);
@@ -46,116 +65,242 @@
             console.log(r);
         }
     }
-    function keyDownHandler(e){
-        if (e.keyCode === 73) {
-            dp=true; // i
-        }
-        else if (e.keyCode === 75) {
-            dm=true; // k
-        }
-        else if (e.keyCode === 74) {
-            rp=true; // j
-        }
-        else if (e.keyCode === 76) {
-            rm=true; // l
+    document.onkeyup=keyUpHandler;
+    
+    // duration of the sky darkening animation
+    skyDarkeningDuration = 4000; // ms
+    // duration of the sky clearing animation
+    skyClearingDuration = skyDarkeningDuration / 8;
+    skyDarkeningIntensity = 0.8 // level of darkening of the sky (1.0 is totally black)
+
+    function darkenSky() {
+        blackSky = document.getElementById("black-sky");
+        
+        // create the animation that darkens the sky
+        // (animate opacity of the black sky from 0.0 to skyDarkeningIntensity)
+        skyDarkening = document.createElement("a-animation");
+        skyDarkening .setAttribute("id","sky-darkening");
+        skyDarkening .setAttribute("attribute","opacity");
+        skyDarkening .setAttribute("from","0.0");
+        skyDarkening .setAttribute("to",skyDarkeningIntensity);
+        skyDarkening .setAttribute("dur",skyDarkeningDuration);
+        
+        blackSky.appendChild(skyDarkening);
+    }
+    
+    function clearSky() {
+        skyDarkening = document.getElementById("sky-darkening");
+
+        // if the sky darkening animation is present...
+        if (skyDarkening) {
+            // animate the opacity of the black sky from the current level back to 0.0
+            blackSky = document.getElementById("black-sky");
+            currentSkyOpacity = blackSky.getAttribute("opacity");
+            
+            skyClearing = document.createElement("a-animation");
+            skyClearing.setAttribute("id","sky-clearing");
+            skyClearing.setAttribute("attribute","opacity");
+            skyClearing.setAttribute("from",currentSkyOpacity);
+            skyClearing.setAttribute("to","0.0");
+            // adjust the animation duration based on the current level of the darkening
+            // (if the darkening was not complete, the sky will clear out faster)
+            clearingDuration = skyClearningDuration*currentSkyOpacity/skyDarkeningIntensity
+            skyClearing.setAttribute("dur",clearingDuration);
+
+            blackSky.removeChild(skyDarkening);
+            blackSky.appendChild(skyClearing);
+            
+            // delete the animation afterwards
+            setTimeout(
+                function(){
+                    blackSky.removeChild(skyClearing);
+                },
+                clearingDuration);
         }
     }
-    blackoutDuration = 4000; // ms
-    clearBlackoutDuration = blackoutDuration / 8;
-    blackoutIntensity = 0.8 // opacity of the black-sky
-    alpha = [0,10,20,30,40,50,60,70,80,90];
-    delta = [0,10,20,30,40,50,60,70,80,90];
-    detail = false;
-    //x0=0; y0=1.25; z0=-5;
-    //angle = 45
-    //boxik = document.getElementById("boxik")
-    //gula = document.getElementById("gula")
-    setInterval(function(){
+    
+    // changing set of the last few camera directions (direction as a unit vector)
+    // in every event loop iteration the oldest direction is deleted and the current one is appended
+    // (initialized with random values that are spread out over a big area to fail isGazing condition)
+    previousDirections = [[1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1],
+                          [1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1]];
+
+    // if directionalVariation is bigger than this
+    // then the previousDirections vectors should lie approximately within a 10 degree big patch of the sky
+    defaultGazingThreshold = 0.996;
+    currentGazingThreshold = defaultGazingThreshold; // may change after we zoom-in on an object
+
+    zoomedObject = null; // is set to a JSON object with details of the currently zoomed-in object
+    
+    // duration of the object zoom-in animation
+    zoomInDuration = 4000 // ms
+    // how fast the zoomed object appears (opacity is animated from 0 to 1)
+    appearDuration = zoomInDuration / 8;
+    // duration of the object zoom-out animation
+    zoomOutDuration = zoomInDuration / 8;
+
+    function zoomInSkyObject(skyObject) {
+        // sky object plane coordinates
+        x = skyObject.x;
+        y = skyObject.y;
+        z = skyObject.z;
+        
+        skyObjectPlane = document.createElement("a-plane");
+        skyObjectPlane.setAttribute("id",skyObject.id);
+        skyObjectPlane.setAttribute("width",skyObject.width);
+        skyObjectPlane.setAttribute("height",skyObject.height);
+        skyObjectPlane.setAttribute("opacity","0.0");
+        skyObjectPlane.setAttribute("transparent","true");
+        skyObjectPlane.setAttribute("src",skyObject.image);
+        skyObjectPlane.setAttribute("position",x+" "+y+" "+z);
+        skyObjectPlane.setAttribute("rotation",skyObject.delta+" "+skyObject.alpha+" "+skyObject.orientation);
+        
+        objectShowAnimation = document.createElement("a-animation");
+        objectShowAnimation.setAttribute("id",skyObject.id+"-show");
+        objectShowAnimation.setAttribute("attribute","opacity");
+        objectShowAnimation.setAttribute("from","0.0");
+        objectShowAnimation.setAttribute("to","1.0");
+        objectShowAnimation.setAttribute("dur",appearDuration);
+        
+        // fraction of distance when zoomed-in
+        zoom = skyObject.zoom;
+        
+        objectZoomAnimation = document.createElement("a-animation");
+        objectZoomAnimation.setAttribute("id",skyObject.id+"-zoom");
+        objectZoomAnimation.setAttribute("attribute","position");
+        objectZoomAnimation.setAttribute("from",x+" "+y+" "+z);
+        objectZoomAnimation.setAttribute("to",x/zoom+" "+y/zoom+" "+z/zoom);
+        objectZoomAnimation.setAttribute("dur",zoomInDuration);
+        
+        skyObjectPlane.appendChild(objectShowAnimation);
+        skyObjectPlane.appendChild(objectZoomAnimation);
+
+        sky = document.getElementById("sky");
+        sky.appendChild(skyObjectPlane);
+
+        currentGazingThreshold = skyObject.gazingThreshold;
+    }
+    
+    function zoomOutSkyObject(skyObject) {
+        // TODO
+        // get show and zoom animations
+        // remove them
+        // create disappear and zoom-out animation
+        // add them
+        // add setTimeout to remove object after
+    }
+    
+    function getSkyObject(gazingDirection) {
+        // TODO checks and multiple objects
+        return {
+            id: "m31",
+
+            image: "m31.png",
+
+            width: 8,
+            height: 8,
+
+            x: 48.90764378515029,
+            y: -45.62703952190438,
+            z: 95.71002621136812,
+
+            delta: -23.720452718416084,
+            alpha: 207.0669471602788,
+            orientation: -95,
+
+            zoom: 10,
+
+            gazingThreshold: 0.93
+        }
+    }
+    
+    function main_event_loop() {
         camera = document.querySelector('[camera]');
-        if (! camera) return;
-        cam_position = camera.getAttribute('position');
-        cam_x = cam_position.x;
-        cam_y = cam_position.y;
-        cam_z = cam_position.z;
-        cam_rotation = camera.getAttribute('rotation');
-        cam_d = cam_rotation.x;
-        cam_a = cam_rotation.y;
-        alpha.shift();
-        alpha.push(cam_a);
-        avg_a = alpha.reduce(function(s,v){s+=v;return s},0) / 10;
-        var_a = Math.sqrt(alpha.reduce(function(s,v){s+=(v-avg_a)**2;return s},0));
-        delta.shift();
-        delta.push(cam_d);
-        avg_d = delta.reduce(function(s,v){s+=v;return s},0) / 10;
-        var_d = Math.sqrt(delta.reduce(function(s,v){s+=(v-avg_d)**2;return s},0));
-        if ((var_a<1.5) && (var_d<1)) {
-            x = cam_x - d * Math.sin(Math.PI * avg_a / 180) * Math.cos(Math.PI * avg_d / 180);
-            z = cam_z - d * Math.cos(Math.PI * avg_a / 180) * Math.cos(Math.PI * avg_d / 180);
-            y = cam_y + d * Math.sin(Math.PI * avg_d / 180);
-            //console.log(x);
-            //console.log(y);
-            //console.log(z);
-            blackSky = document.getElementById("black-sky");
-            fadeOut = document.createElement("a-animation");
-            fadeOut.setAttribute("id","sky-fadeout");
-            fadeOut.setAttribute("attribute","opacity");
-            fadeOut.setAttribute("from","0.0");
-            fadeOut.setAttribute("to",blackoutIntensity);
-            fadeOut.setAttribute("dur",blackoutDuration);
-            //gula = document.createElement("a-text");
-            //gula.setAttribute("color","green");
-            //gula.setAttribute("rotation",cam_d+" "+cam_a);
-            //gula.setAttribute("position",(x+cam_x)+"; "+(y+cam_y)+" "+(z+cam_z));
-            //gula.setAttribute("text","value","test");
-            if(dp){d+=0.1}
-            if(dm){d-=0.1}
-            if(rp){r+=1}
-            if(rm){r-=1}
-            m31 = document.getElementById("m31");
-            m31.setAttribute("position",x+" "+y+" "+z);
-            m31.setAttribute("rotation",cam_d+" "+cam_a+" "+r);
-            if( !detail ) {
-                blackSky.appendChild(fadeOut);
-                detail = true;
-
-                //m31 = document.getElementById("m31");
-                //m31Zoom = document.createElement("a-animation");
-                //m31Zoom.setAttribute("id","m31-zoom");
-                //m31Zoom.setAttribute("attribute","position");
-                //m31Zoom.setAttribute("from","43 -39 83");
-                //m31Zoom.setAttribute("to","4.3 -3.9 8.3");
-                //m31Zoom.setAttribute("dur","5000");
-                //m31.appendChild(m31Zoom);
-            }
+        if (! camera) return; // do not do anything before the VR environment is created
+        
+        // increase/decrease distance and rotation is set by holding down corresponding keys (i,j,k,l)
+        if (increaseDistance){
+            currentDistance *= 1.01; // change by 1%
         }
-        else {
-            if (detail) {
-                //m31 = document.getElementById("m31");
-                //m31.removeChild(m31);
-                
-                fadeOut = document.getElementById("sky-fadeout");
-                if (fadeOut) {
-                    blackSky = document.getElementById("black-sky");
-                    currentSkyOpacity = blackSky.getAttribute("opacity");
-
-                    fadeIn = document.createElement("a-animation");
-                    fadeIn.setAttribute("id","sky-fadein");
-                    fadeIn.setAttribute("attribute","opacity");
-                    fadeIn.setAttribute("from",currentSkyOpacity);
-                    fadeIn.setAttribute("to","0.0");
-                    fadeIn.setAttribute("dur",clearBlackoutDuration*currentSkyOpacity/blackoutIntensity);
-
-                    blackSky.removeChild(fadeOut);
-                    blackSky.appendChild(fadeIn);
-                    
-                    setTimeout(function(){
-                        blackSky.removeChild(fadeIn);
-                    }, 1000);
+        if (decreaseDistance){
+            currentDistance *= 0.99; // change by 1%
+        }
+        if (increaseRotation){
+            currentRotation += 1 // change by 1 degree
+        }
+        if (decreaseRotation){
+            currentRotation -= 1 // change by 1 degree
+        }
+        
+        cameraRotation = camera.getAttribute('rotation');
+        
+        // get current camera rotational angles
+        cameraDelta = cameraRotation.x;
+        cameraAlpha = cameraRotation.y;
+        // calculate the current camera direction as a unit vector
+        currentDirection_x = -Math.sin(Math.PI * cameraAlpha / 180) * Math.cos(Math.PI * cameraDelta / 180);
+        currentDirection_y =  Math.sin(Math.PI * cameraDelta / 180);
+        currentDirection_z = -Math.cos(Math.PI * cameraAlpha / 180) * Math.cos(Math.PI * cameraDelta / 180);
+        
+        // delete the oldest recorded camera direction
+        previousDirections.shift();
+        // append the current camera direction
+        previousDirections.push([currentDirection_x, currentDirection_y, currentDirection_z]);
+        
+        // keep the test plane in front of the camera if we have it
+        testPlane = document.getElementById("test-plane");
+        if(testPlane) {
+            // put test plane in front of the camera in the currentDistance
+            cameraPosition = camera.getAttribute('position');
+            x = cameraPosition.x + currentDistance * direction_x;
+            z = cameraPosition.z + currentDistance * direction_z;
+            y = cameraPosition.y + currentDistance * direction_y;
+            // keep the test plane facing the camera and rotated with currentRotation
+            testPlane.setAttribute("position",x+" "+y+" "+z);
+            testPlane.setAttribute("rotation",cameraDelta+" "+cameraAlpha+" "+currentRotation);
+        }
+        
+        // average of the cosine of the angle between all of the previousDirections
+        // (bigger number means that the previousDirections vectors are closer to each other)
+        directionalVariation = previousDirections.reduce(
+            function(s,v1){
+                for(i in s[1]){
+                    v2 = s[1][i];
+                    s[0] += (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) / (s[1].length**2);
                 }
+                return s
+            },
+            [0,previousDirections]);
+        
+        isGazing = (directionalVariation > currentGazingThreshold);
+        if (isGazing) {
+            // use the average of the diretional vector of the previousDirections as the gazing direction
+            gazingDirection = previousDirections.reduce(
+                function(s,v){
+                    s[0]+=v[0]/previousDirections.length;
+                    s[1]+=v[1]/previousDirections.length;
+                    s[2]+=v[2]/previousDirections.length;
+                    return s;
+                },
+                [0,0,0]);
+
+            // determine if there is any object near the current gazing direction
+            objectUnderGaze = getSkyObject(gazingDirection);
+            if (objectUnderGaze && !zoomedObject) {
+                darkenSky();
+                zoomInSkyObject(objectUnderGaze);
+                zoomedObject = objectUnderGaze;
             }
-            detail = false;
+        } else {
+            // not gazing
+            if (zoomedObject) {
+                zoomOutSkyObject(zoomedObject);
+                zoomedObject = null;
+                clearSky();
+            }
         }
-    },100)
+    }
+    setInterval(main_event_loop,100)
     </script>
   </body>
 </html>
