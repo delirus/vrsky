@@ -236,10 +236,26 @@
         return dotProduct / (absDirection1 * absDirection2);
     }
     
+    deepSkyObjects = [
+        {id:"m31",image:"m31.png",x:54.60190812484029,y:-50.90660844872456,z:105.07996794628716,alpha:567.4574002975671,delta:-23.26208648231143,orientation:-96,zoom:20,gazingThreshold:0.94,width:8,height:8},
+        {id:"m45",image:"m45.png",x:259.60903397256385,y:-128.0700375304661,z:76.45081605543871,alpha:253.59112012490104,delta:-25.324734544782398,orientation:-2,zoom:30,gazingThreshold:0.94,width:8,height:8}
+    ];
+    
     function getSkyObject(gazingDirection) {
-        // TODO checks and multiple objects
-        //return {id:"m31",image:"m31.png",x:54.60190812484029,y:-50.90660844872456,z:105.07996794628716,alpha:567.4574002975671,delta:-23.26208648231143,orientation:-96,zoom:10,gazingThreshold:0.94,width:8,height:8}
-        return {id:"m45",image:"m45.png",x:259.60903397256385,y:-128.0700375304661,z:76.45081605543871,alpha:253.59112012490104,delta:-25.324734544782398,orientation:-2,zoom:30,gazingThreshold:0.93,width:8,height:8}
+        nearbySkyObject = null;
+        
+        cosMax = -1; // anything in direction closer than exactly opposite will match
+        for (i in deepSkyObjects) {
+            skyObject = deepSkyObjects[i];
+            cosObjectDirection = cosAngle(gazingDirection, [skyObject.x, skyObject.y, skyObject.z]);
+            if (cosObjectDirection > cosMax) { // is the nearest object found so far
+                if (cosObjectDirection > skyObject.gazingThreshold) {
+                    nearbySkyObject = skyObject;
+                }
+            }
+        }
+        
+        return nearbySkyObject;
     }
     
     function main_event_loop() {
