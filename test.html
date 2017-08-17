@@ -20,12 +20,19 @@
 
     <script>
     currentDistance = 10;
-    currentRotation = 0;
+    currentOrientation = 0;
+    
+    currentDirection_x = 0;
+    currentDirection_y = 0;
+    currentDirection_z = 0;
+    
+    cameraAlpha = 0;
+    cameraDelta = 0;
     
     increaseDistance = false;
     decreaseDistance = false;
-    increaseRotation = false;
-    decreaseRotation = false;
+    increaseOrientation = false;
+    decreaseOrientation = false;
 
     function keyDownHandler(e){
         if (e.keyCode === 73) { // i
@@ -35,10 +42,10 @@
             decreaseDistance = true;
         }
         else if (e.keyCode === 74) { // j
-            increaseRotation = true;
+            increaseOrientation = true;
         }
         else if (e.keyCode === 76) { // l
-            decreaseRotation = true;
+            decreaseOrientation = true;
         }
     }
     document.onkeydown=keyDownHandler;
@@ -51,18 +58,14 @@
             decreaseDistance = false;
         }
         else if (e.keyCode === 74) { // j
-            increaseRotation = false;
+            increaseOrientation = false;
         }
         else if (e.keyCode === 76) { // l
-            decreaseRotation = false;
+            decreaseOrientation = false;
         }
-        else if (e.keyCode === 13) {
-            console.log(x);
-            console.log(y);
-            console.log(z);
-            console.log(cam_d);
-            console.log(cam_a);
-            console.log(r);
+        else if (e.keyCode === 13) { // enter
+            // print out current position and rotation of the test plane
+            console.log("{id:,image:,x:"+currentDistance*currentDirection_x+",y:"+currentDistance*currentDirection_y+",z:"+currentDistance*currentDirection_z+",alpha:"+cameraAlpha+",delta:"+cameraDelta+",orientation:"+currentOrientation+",zoom:10,gazingThreshold:0.93,width:8,height:8},");
         }
     }
     document.onkeyup=keyUpHandler;
@@ -104,7 +107,7 @@
             skyClearing.setAttribute("to","0.0");
             // adjust the animation duration based on the current level of the darkening
             // (if the darkening was not complete, the sky will clear out faster)
-            clearingDuration = skyClearningDuration*currentSkyOpacity/skyDarkeningIntensity
+            clearingDuration = skyClearingDuration*currentSkyOpacity/skyDarkeningIntensity
             skyClearing.setAttribute("dur",clearingDuration);
 
             blackSky.removeChild(skyDarkening);
@@ -123,11 +126,12 @@
     // in every event loop iteration the oldest direction is deleted and the current one is appended
     // (initialized with random values that are spread out over a big area to fail isGazing condition)
     previousDirections = [[1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1],
+                          [1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1],
                           [1,0,0],[0,1,0],[0,0,1],[-1,0,0],[0,-1,0],[0,0,-1]];
 
     // if directionalVariation is bigger than this
-    // then the previousDirections vectors should lie approximately within a 10 degree big patch of the sky
-    defaultGazingThreshold = 0.996;
+    // then the previousDirections vectors should lie approximately within a 5 degree big patch of the sky
+    defaultGazingThreshold = 0.999;
     currentGazingThreshold = defaultGazingThreshold; // may change after we zoom-in on an object
 
     zoomedObject = null; // is set to a JSON object with details of the currently zoomed-in object
@@ -179,15 +183,56 @@
         sky.appendChild(skyObjectPlane);
 
         currentGazingThreshold = skyObject.gazingThreshold;
+        
+        zoomedObject = skyObject;
     }
     
+    // set to prevent calling zoomOutSkyObject multiple times in parallel
+    zoomOutAlreadyStarted = false;
+    
     function zoomOutSkyObject(skyObject) {
-        // TODO
-        // get show and zoom animations
-        // remove them
-        // create disappear and zoom-out animation
-        // add them
-        // add setTimeout to remove object after
+        if (zoomOutAlreadyStarted) return;
+        
+        skyObjectPlane = document.getElementById(skyObject.id);
+        
+        objectShowAnimation = document.getElementById(skyObject.id+"-show");
+        skyObjectPlane.removeChild(objectShowAnimation);
+        
+        objectZoomAnimation = document.getElementById(skyObject.id+"-zoom");
+        skyObjectPlane.removeChild(objectZoomAnimation);
+        
+        currentObjectOpacity = skyObjectPlane.getAttribute("opacity");
+        hideDuration = appearDuration * currentObjectOpacity;
+        
+        objectHideAnimation = document.createElement("a-animation");
+        objectHideAnimation.setAttribute("id",skyObject.id+"-show");
+        objectHideAnimation.setAttribute("attribute","opacity");
+        objectHideAnimation.setAttribute("from",currentObjectOpacity);
+        objectHideAnimation.setAttribute("to","0.0");
+        objectHideAnimation.setAttribute("dur",appearDuration);
+        
+        skyObjectPlane.appendChild(objectHideAnimation);
+        
+        zoomOutAlreadyStarted = true;
+        
+        setTimeout(
+            function() {
+                skyObjectPlane.parentNode.removeChild(skyObjectPlane);
+                zoomedObject = null;
+                zoomOutAlreadyStarted = false;
+            },
+            hideDuration);
+        
+        currentGazingThreshold = defaultGazingThreshold;
+    }
+    
+    function cosAngle(direction1, direction2) {
+        dotProduct = direction1[0]*direction2[0] + direction1[1]*direction2[1] + direction1[2]*direction2[2];
+        
+        absDirection1 = Math.sqrt(direction1[0]**2 + direction1[0]**2 + direction1[0]**2);
+        absDirection2 = Math.sqrt(direction2[0]**2 + direction2[0]**2 + direction2[0]**2);
+        
+        return dotProduct / (absDirection1 * absDirection2);
     }
     
     function getSkyObject(gazingDirection) {
@@ -219,22 +264,23 @@
         if (! camera) return; // do not do anything before the VR environment is created
         
         // increase/decrease distance and rotation is set by holding down corresponding keys (i,j,k,l)
-        if (increaseDistance){
+        if (increaseDistance) {
             currentDistance *= 1.01; // change by 1%
         }
-        if (decreaseDistance){
+        if (decreaseDistance) {
             currentDistance *= 0.99; // change by 1%
         }
-        if (increaseRotation){
-            currentRotation += 1 // change by 1 degree
+        if (increaseOrientation) {
+            currentOrientation += 1 // change by 1 degree
         }
-        if (decreaseRotation){
-            currentRotation -= 1 // change by 1 degree
+        if (decreaseOrientation) {
+            currentOrientation -= 1 // change by 1 degree
         }
         
         cameraRotation = camera.getAttribute('rotation');
         
-        // get current camera rotational angles
+        // get the current value of the two main camera rotational angles
+        // (they fully determine the direction of the camera)
         cameraDelta = cameraRotation.x;
         cameraAlpha = cameraRotation.y;
         // calculate the current camera direction as a unit vector
@@ -247,17 +293,17 @@
         // append the current camera direction
         previousDirections.push([currentDirection_x, currentDirection_y, currentDirection_z]);
         
-        // keep the test plane in front of the camera if we have it
+        // keep the test plane in front of the camera and rotated accordingly if we have it
         testPlane = document.getElementById("test-plane");
         if(testPlane) {
             // put test plane in front of the camera in the currentDistance
             cameraPosition = camera.getAttribute('position');
-            x = cameraPosition.x + currentDistance * direction_x;
-            z = cameraPosition.z + currentDistance * direction_z;
-            y = cameraPosition.y + currentDistance * direction_y;
-            // keep the test plane facing the camera and rotated with currentRotation
+            x = cameraPosition.x + currentDistance * currentDirection_x;
+            y = cameraPosition.y + currentDistance * currentDirection_y;
+            z = cameraPosition.z + currentDistance * durrentDirection_z;
+            // keep the test plane facing the camera and rotated with currentOrientation
             testPlane.setAttribute("position",x+" "+y+" "+z);
-            testPlane.setAttribute("rotation",cameraDelta+" "+cameraAlpha+" "+currentRotation);
+            testPlane.setAttribute("rotation",cameraDelta+" "+cameraAlpha+" "+currentOrientation);
         }
         
         // average of the cosine of the angle between all of the previousDirections
@@ -266,13 +312,16 @@
             function(s,v1){
                 for(i in s[1]){
                     v2 = s[1][i];
+                    // we don't use cosAngle function because we always have unit vectors and this is faster
+                    // (this is called once in every event loop)
                     s[0] += (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) / (s[1].length**2);
                 }
                 return s
             },
-            [0,previousDirections]);
+            [0,previousDirections])[0];
         
         isGazing = (directionalVariation > currentGazingThreshold);
+        
         if (isGazing) {
             // use the average of the diretional vector of the previousDirections as the gazing direction
             gazingDirection = previousDirections.reduce(
@@ -289,14 +338,14 @@
             if (objectUnderGaze && !zoomedObject) {
                 darkenSky();
                 zoomInSkyObject(objectUnderGaze);
-                zoomedObject = objectUnderGaze;
+                console.log("gazing on")
             }
         } else {
             // not gazing
             if (zoomedObject) {
                 zoomOutSkyObject(zoomedObject);
-                zoomedObject = null;
                 clearSky();
+                console.log("gazing off")
             }
         }
     }
