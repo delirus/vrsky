@@ -1,0 +1,22 @@
+Image credit:
+https://news.sponli.com/en/
+
+Imaging telescopes or lenses: Samyang Walimex 85mm 1.4
+Imaging cameras: Canon DSLR 1000(d) modifiziert
+Mounts: Skywatcher EQ-5 + Synscan
+Guiding cameras: ZWO optical ASI 120mm
+Software: Fitswork4,  Adobe Photo Shop
+Resolution: 3837×2453
+Dates: April 14, 2015
+Frames: 20×240″
+Integration: 1.3 hours
+Avg. Moon age: 24.11 days
+Avg. Moon phase: 29.73%
+RA center: 80.858 degrees
+DEC center: -67.791 degrees
+Pixel scale: 13.675 arcsec/pixel
+Orientation: -92.003 degrees
+Field radius: 8.647 degrees
+Locations: Gästefarm Wildacker, Grootfontein, Namibia
+
+Author: sbothe
