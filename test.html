@@ -12,9 +12,10 @@
       <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
         <a-animation attribute="opacity" dur="5000" from="0.0" to="0.8"></a-animation>
         <a-ring position="0 0 -20" color="gray" radius="0.1" opacity=0.5></a-ring>
-      <a-plane id="test-plane" src="rosette.png" position="0 0 -10" rotation="0 0 0" width=8 height=8 transparent="true" opacity="0.6"></a-plane>
+      <a-plane id="test-plane" src="m44.png" position="0 0 -10" rotation="0 0 0" width=8 height=8 transparent="true" opacity="0.6"></a-plane>
       --!>
-      <a-camera id="camera" position="0 0 0" rotation="0 0 0"></a-camera>
+      <a-camera id="camera" position="0 0 0" rotation="0 0 0">
+      </a-camera>
       <a-sky id="starry-sky" src="milkyway.jpg"></a-sky>
       <a-sky id="black-sky" color="black" opacity="0.0"></a-sky>
     </a-scene>
@@ -237,11 +238,13 @@
     }
     
     deepSkyObjects = [
+        {id:"m44",image:"m44.png",x:52.20897946345167,y:33.694348429993035,z:-20.829386170891667,alpha:291.7501092806142,delta:30.939720937064468,orientation:137,zoom:10,gazingThreshold:0.95,width:8,height:8},
+        {id:"smc",image:"smc.png",x:-31.534494089420754,y:-57.45141565619307,z:-53.574807377880454,alpha:30.481354700959816,delta:-42.74265151675944,orientation:-185,zoom:10,gazingThreshold:0.95,width:8,height:8},
         {id:"rosette",image:"rosette.png",x:181.69911451011114,y:-11.075750062636246,z:-77.59574245230067,alpha:293.1252079889293,delta:-3.2085636527326145,orientation:-65,zoom:10,gazingThreshold:0.93,width:8,height:8},
-        {id:"m42",image:"m42.png",x:112.47313366759198,y:-46.7579475581427,z:-56.2314227743437,alpha:296.56295475971336,delta:-20.397297506657306,orientation:-55,zoom:10,gazingThreshold:0.93,width:8,height:8},
-        {id:"lmc",image:"lmc.png",x:-5.538251808961209,y:-22.824093624920163,z:-36.64434987499092,alpha:8.594366926962346,delta:-31.627270291221464,orientation:-22,zoom:10,gazingThreshold:0.94,width:8,height:8},
-        {id:"m31",image:"m31.png",x:54.60190812484029,y:-50.90660844872456,z:105.07996794628716,alpha:567.4574002975671,delta:-23.26208648231143,orientation:-96,zoom:20,gazingThreshold:0.94,width:8,height:8},
-        {id:"m45",image:"m45.png",x:259.60903397256385,y:-128.0700375304661,z:76.45081605543871,alpha:253.59112012490104,delta:-25.324734544782398,orientation:-2,zoom:30,gazingThreshold:0.94,width:8,height:8}
+        {id:"m42",image:"m42.png",x:112.47313366759198,y:-46.7579475581427,z:-56.2314227743437,alpha:296.56295475971336,delta:-20.397297506657306,orientation:-55,zoom:10,gazingThreshold:0.95,width:8,height:8},
+        {id:"lmc",image:"lmc.png",x:-5.538251808961209,y:-22.824093624920163,z:-36.64434987499092,alpha:8.594366926962346,delta:-31.627270291221464,orientation:-22,zoom:10,gazingThreshold:0.95,width:8,height:8},
+        {id:"m31",image:"m31.png",x:54.60190812484029,y:-50.90660844872456,z:105.07996794628716,alpha:567.4574002975671,delta:-23.26208648231143,orientation:-96,zoom:20,gazingThreshold:0.95,width:8,height:8},
+        {id:"m45",image:"m45.png",x:259.60903397256385,y:-128.0700375304661,z:76.45081605543871,alpha:253.59112012490104,delta:-25.324734544782398,orientation:-2,zoom:30,gazingThreshold:0.95,width:8,height:8}
     ];
     
     function getSkyObject(gazingDirection) {
@@ -251,7 +254,10 @@
         for (i in deepSkyObjects) {
             skyObject = deepSkyObjects[i];
             cosObjectDirection = cosAngle(gazingDirection, [skyObject.x, skyObject.y, skyObject.z]);
+            //console.log(skyObject.id);console.log(cosObjectDirection);
+            //console.log(gazingDirection);console.log([skyObject.x, skyObject.y, skyObject.z]);
             if (cosObjectDirection > cosMax) { // is the nearest object found so far
+                cosMax = cosObjectDirection;
                 if (cosObjectDirection > skyObject.gazingThreshold) {
                     nearbySkyObject = skyObject;
                 }
