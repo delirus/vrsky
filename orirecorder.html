@@ -1,0 +1,48 @@
+<html>
+  <head>
+    <script src="aframe.min.js"></script>
+  </head>
+  <body>
+    <video id="video" autoplay></video>
+    <img id="snapshot"></img>
+    <a-scene id="orientation" style="width:0;height:0" embedded>
+      <a-camera id="camera" position="0 0 0" rotation="0 0 0"></a-camera>
+    </a-scene>
+    <p id="x"></p>
+    <p id="y"></p>
+    <p id="z"></p>
+    <script>
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia({video: true})
+          .then(function(stream) {
+            video.srcObject = stream;
+            video.addEventListener('click',test);
+          })
+          .catch(function(error) {
+            document.body.textContent = 'Could not access the camera. Error: ' + error.name;
+          });
+      }
+      x=document.getElementById("x");
+      y=document.getElementById("y");
+      z=document.getElementById("z");
+      camera = document.getElementById("camera");
+      function test(){
+        rotation = camera.getAttribute("rotation");
+        x.innerHTML = rotation.x;
+        y.innerHTML = rotation.y;
+        z.innerHTML = rotation.z;
+
+      vid = document.getElementById("video");
+      w = video.videoWidth;
+      h = video.videoHeight;
+      cnvs = document.createElement("canvas");
+      cnvs.width=w;cnvs.height=h;
+      ctxt = cnvs.getContext('2d');
+      img = document.getElementById("snapshot");
+      
+        ctxt.drawImage(vid, 0,0);
+        img.src = cnvs.toDataURL('image/png');
+      }
+    </script>
+  </body>
+</html>
