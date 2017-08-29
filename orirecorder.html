@@ -1,47 +1,114 @@
 <html>
   <head>
     <script src="aframe.min.js"></script>
+<style>
+.half-height-row {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 0 auto;
+}
+.full-width-column {
+    width: 100%;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin: 0 auto;
+}
+.block {  
+    height: 100%;
+    width: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.block-centered {  
+    max-height: 100%;  
+    max-width: 100%; 
+    width: auto;
+    height: auto;
+    position: absolute;  
+    top: 0;  
+    bottom: 0;  
+    left: 0;  
+    right: 0;  
+    margin: 0 auto;
+}
+.block-item {
+    margin: 0 auto;
+}
+.flipped-vertically {
+    transform: scaleY(-1);
+}
+</style>
   </head>
   <body>
-    <video id="video" autoplay></video>
-    <img id="snapshot"></img>
-    <a-scene id="orientation" style="width:0;height:0" embedded>
-      <a-camera id="camera" position="0 0 0" rotation="0 0 0"></a-camera>
-    </a-scene>
-    <p id="x"></p>
-    <p id="y"></p>
-    <p id="z"></p>
+    <div class="full-width-column">
+      <div class="half-height-row">
+        <div class="block">
+          <video id="video" class="block-centered" autoplay></video>
+        </div>
+        <div class="block">
+          <a-scene id="orientation" class="block-centered" embedded>
+            <a-camera id="camera" position="0 0 0" rotation="0 0 0">
+              <a-sphere id="sphere" position="0 0 -10" radius="3" rotation="0 0 0" src="grid.gif">
+              </a-sphere>
+            </a-camera>
+          </a-scene>
+        </div>
+      </div>
+    </div>
+    <div class="full-width-column">
+      <div class="half-height-row">
+        <div class="block">
+          <img id="snapshot" class="block-centered flipped-vertically"></img>
+        </div>
+        <div class="block">
+          <button id="take" class="block-item">take</button>
+        </div>
+      </div>
+    </div>
     <script>
       if (navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({video: true})
           .then(function(stream) {
             video.srcObject = stream;
-            video.addEventListener('click',test);
           })
           .catch(function(error) {
             document.body.textContent = 'Could not access the camera. Error: ' + error.name;
           });
       }
-      x=document.getElementById("x");
-      y=document.getElementById("y");
-      z=document.getElementById("z");
-      camera = document.getElementById("camera");
-      function test(){
-        rotation = camera.getAttribute("rotation");
-        x.innerHTML = rotation.x;
-        y.innerHTML = rotation.y;
-        z.innerHTML = rotation.z;
+      btn = document.getElementById("take");
+      btn.addEventListener('click',test);
 
-      vid = document.getElementById("video");
-      w = video.videoWidth;
-      h = video.videoHeight;
-      cnvs = document.createElement("canvas");
-      cnvs.width=w;cnvs.height=h;
-      ctxt = cnvs.getContext('2d');
-      img = document.getElementById("snapshot");
-      
+      sph = document.getElementById("sphere");
+      rotation = camera.getAttribute("rotation");
+      rx0 = 0;
+      ry0 = 0;
+      rz0 = 0;
+      setInterval(function(){
+          camera = document.getElementById("camera");
+          rotation = camera.getAttribute("rotation");
+          sph.setAttribute("rotation",(rx0-rotation.x)+" "+(ry0-rotation.y)+" "+(rz0-rotation.z));
+        },
+        100)
+      function test(){
+        vid = document.getElementById("video");
+        w = video.videoWidth;
+        h = video.videoHeight;
+        cnvs = document.createElement("canvas");
+        cnvs.width=w;cnvs.height=h;
+        ctxt = cnvs.getContext('2d');
+        img = document.getElementById("snapshot");
         ctxt.drawImage(vid, 0,0);
-        img.src = cnvs.toDataURL('image/png');
+        img.src = cnvs.toDataURL('image/jpeg');
+        rx0 = rotation.x;
+        ry0 = rotation.y;
+        rz0 = rotation.z;
+        sph.setAttribute("rotation","0 0 0");
       }
     </script>
   </body>
